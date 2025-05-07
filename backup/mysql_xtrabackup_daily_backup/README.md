@@ -7,71 +7,73 @@ This Bash script automates daily backups of MySQL 8.0.x databases, compresses ba
 
 ## Features
 
-- Full or incremental backups depending on the day
-- Backup compression using `tar` and `zstd`
-- Secure transfer to remote server via `rsync`
-- Upload backup archives to AWS S3 (supports configurable storage class, e.g., `GLACIER_IR`)
-- Optional transfer toggles for `rsync` and `S3` via `enable_rsync`, `enable_s3`
-- Automatic cleanup of old backups based on retention settings
-- Daily report delivery via email using `msmtp`
-- Highly configurable via simple variable edits
+* Full or incremental backups depending on the day
+* Backup compression using `tar` and `zstd`
+* Secure transfer to remote server via `rsync`
+* Upload backup archives to AWS S3 (supports configurable storage class, e.g., `GLACIER_IR`)
+* Optional transfer toggles for `rsync` and `S3` via `enable_rsync`, `enable_s3`
+* Automatic cleanup of old backups based on retention settings
+* Daily report delivery via email using `msmtp`
+* Highly configurable via simple variable edits
+* Connection options for MySQL (`defaults_file` and `socket`) are automatically validated before use. If invalid or missing, safe defaults are applied.
 
 ## Requirements
 
 The following tools must be installed and available in your system's `PATH`:
 
-- ⚠️ **Percona XtraBackup ≥ 8.0.12**  
-  Used to perform physical backups of MySQL databases.  
+* ⚠️ **Percona XtraBackup ≥ 8.0.12**
+  Used to perform physical backups of MySQL databases.
   Version 8.0.12 or higher is required to support `--login-path`, which allows secure passwordless authentication via `mysql_config_editor`.
 
-- ⚠️ **AWS CLI v2 (`aws`)**  
-  Used to upload compressed backup archives to AWS S3.  
-  Version 2 is required to support options like `--storage-class` and improved authentication.  
+* ⚠️ **AWS CLI v2 (`aws`)**
+  Used to upload compressed backup archives to AWS S3.
+  Version 2 is required to support options like `--storage-class` and improved authentication.
   Make sure to configure credentials via `aws configure` or environment variables.
 
-- **rsync**  
-  Used to securely transfer backup archives to a remote server over SSH.  
+* **rsync**
+  Used to securely transfer backup archives to a remote server over SSH.
   Requires proper SSH access to the remote host.
 
-- **msmtp**  
-  Lightweight SMTP client used to send daily backup reports via email.  
+* **msmtp**
+  Lightweight SMTP client used to send daily backup reports via email.
   Requires SMTP server configuration and credentials.
 
-- **zstd**  
+* **zstd**
   Compression tool used with `tar` to reduce backup archive size efficiently using multithreaded compression.
 
 ## Configuration
 
 Edit the following variables inside the script:
 
-| Variable                                                                   | Description                                          |
-| -------------------------------------------------------------------------- | ---------------------------------------------------- |
-| `backup_dir`                                                               | Local directory for backups                          |
-| `defaults_file`                                                            | Path to MySQL configuration file (`my.cnf`)          |
-| `socket`                                                                   | MySQL socket path                                    |
-| `login_path`                                                               | MySQL authentication profile (via mysql_config_editor) |
-| `remote_backup_dir`, `remote_backup_host`, `remote_user`                   | Remote server settings                               |
-| `remote_backup_dir2`                                                       | AWS S3 bucket and path                               |
-| `enable_rsync`                                                             | Set to `true` or `false` to enable/disable remote server transfer |
-| `enable_s3`                                                                | Set to `true` or `false` to enable/disable AWS S3 upload |
-| `aws_cli`                                                                  | Path to AWS CLI binary                               |
-| `s3_storage_class`                                                         | S3 storage class for uploaded archives               |
-| `smtp_server`, `smtp_user`, `smtp_pass`, `mail_sender`, `report_recipient` | SMTP settings for sending emails                     |
-| `company_name`, `company_team`, `mail_subject_prefix`                      | Company branding for email reports                   |
-| `backup_retention_days`                                                    | Number of days to retain local backups               |
-| `full_backup_day`                                                          | Day to perform a full backup (e.g., `Sun`, `Monday`) |
+| Variable                                                                   | Description                                                                                       |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `backup_dir`                                                               | Local directory for backups                                                                       |
+| `defaults_file`                                                            | Path to MySQL configuration file (`my.cnf`). If empty or invalid, defaults to `/etc/my.cnf`       |
+| `socket`                                                                   | MySQL socket path. If empty or invalid, connection will fallback to `login_path` profile defaults |
+| `login_path`                                                               | MySQL authentication profile (via mysql\_config\_editor)                                          |
+| `remote_backup_dir`, `remote_backup_host`, `remote_user`                   | Remote server settings                                                                            |
+| `remote_backup_dir2`                                                       | AWS S3 bucket and path                                                                            |
+| `enable_rsync`                                                             | Set to `true` or `false` to enable/disable remote server transfer                                 |
+| `enable_s3`                                                                | Set to `true` or `false` to enable/disable AWS S3 upload                                          |
+| `aws_cli`                                                                  | Path to AWS CLI binary                                                                            |
+| `s3_storage_class`                                                         | S3 storage class for uploaded archives (e.g., `GLACIER_IR`)                                       |
+| `smtp_server`, `smtp_user`, `smtp_pass`, `mail_sender`, `report_recipient` | SMTP settings for sending emails                                                                  |
+| `company_name`, `company_team`, `mail_subject_prefix`                      | Company branding for email reports                                                                |
+| `backup_retention_days`                                                    | Number of days to retain local backups                                                            |
+| `full_backup_day`                                                          | Day to perform a full backup (e.g., `Sun`, `Monday`)                                              |
 
 > **Tip:**
 >
 > Backup files are automatically named and organized by date.
 >
 > Example:
-> - `full-2025-04-29/` (raw full backup directory)
-> - `full-2025-04-29.tar.zst` (compressed archive)
-> - `incremental-2025-04-30/` (raw incremental backup)
-> - `incremental-2025-04-30.tar.zst` (compressed archive)
 >
-> **MySQL Authentication:**  
+> * `full-2025-04-29/` (raw full backup directory)
+> * `full-2025-04-29.tar.zst` (compressed archive)
+> * `incremental-2025-04-30/` (raw incremental backup)
+> * `incremental-2025-04-30.tar.zst` (compressed archive)
+>
+> **MySQL Authentication:**
 > This script uses `mysql_config_editor` login profiles (via `--login-path`) to authenticate securely without exposing passwords inside the script.
 >
 > To create a login profile, run:
@@ -92,8 +94,8 @@ Edit the following variables inside the script:
 
 This script follows a weekly backup strategy consisting of:
 
-- **One full backup per week** on a designated day (e.g., Sunday), configured via `full_backup_day`
-- **Daily incremental backups** for the remaining days, each based on the most recent backup
+* **One full backup per week** on a designated day (e.g., Sunday), configured via `full_backup_day`
+* **Daily incremental backups** for the remaining days, each based on the most recent backup
 
 The backup process works as follows:
 
@@ -124,12 +126,12 @@ Scheduled daily run (via crontab):
 
 ## Notes
 
-- You can enable or disable remote server (`rsync`) and AWS S3 transfers independently using `enable_rsync` and `enable_s3` flags.
-- If both transfer options are disabled, backups are still created and compressed, but **not transferred or deleted**.
-- The backup file is deleted **only if all enabled transfers succeed**.
-- If either transfer fails, the file is retained and a warning is logged.
-- Full backups are performed only on the configured day, otherwise incremental backups are created.
-- Logging is detailed and saved at `${backup_dir}/backup.log` daily.
+* You can enable or disable remote server (`rsync`) and AWS S3 transfers independently using `enable_rsync` and `enable_s3` flags.
+* If both transfer options are disabled, backups are still created and compressed, but **not transferred or deleted**.
+* The backup file is deleted **only if all enabled transfers succeed**.
+* If either transfer fails, the file is retained and a warning is logged.
+* Full backups are performed only on the configured day, otherwise incremental backups are created.
+* Logging is detailed and saved at `${backup_dir}/backup.log` daily.
 
 ## Email Example
 
