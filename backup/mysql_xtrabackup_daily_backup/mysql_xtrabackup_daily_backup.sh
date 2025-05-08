@@ -25,6 +25,7 @@ login_path="your_login_profile"
 # 로깅 및 유지 기간 설정
 backup_retention_days=3
 log_file="${backup_dir}/backup.log"
+xtrabackup_log="${backup_dir}/xtrabackup.log"
 
 # Rsync 전송 설정
 enable_rsync=true
@@ -118,12 +119,18 @@ send_backup_report() {
         echo "Subject: ${mail_subject}"
         echo "From: ${mail_sender}"
         echo "To: ${report_recipient}"
+        echo "Backup Report of MySQL Database"
         echo ""
-        echo "Daily Backup Report"
         echo ""
+        echo "============================== Backup Summary =============================="
         cat "${log_file}"
+        echo "============================================================================"
         echo ""
-        echo "- ${company_team}"
+        echo "============================ XtraBackup Details ============================"
+        cat "${xtrabackup_log}"
+        echo "============================================================================"
+        echo ""
+        echo "${company_team}"
     } | ${mail_command} "${report_recipient}"
 }
 
@@ -236,7 +243,7 @@ perform_full_backup() {
         --parallel="$(get_cpu_cores)" \
         --login-path="${login_path}" \
         "${socket_option}" \
-        --target-dir="${target_dir}" >> "${log_file}" 2>&1 || {
+        --target-dir="${target_dir}" >> "${xtrabackup_log}" 2>&1 || {
             log "[error] Full backup failed: ${target_dir}"
             exit 1
         }
@@ -263,7 +270,7 @@ perform_incremental_backup() {
         --incremental-basedir="${base_dir}" \
         --login-path="${login_path}" \
         "${socket_option}" \
-        --target-dir="${target_dir}" >> "${log_file}" 2>&1 || {
+        --target-dir="${target_dir}" >> "${xtrabackup_log}" 2>&1 || {
             log "[error] Incremental backup failed: ${target_dir} (base: ${base_dir})"
             exit 1
         }
@@ -276,6 +283,7 @@ perform_incremental_backup() {
 # 메인 함수
 main() {
     true > "${log_file}"
+    true > "${xtrabackup_log}"
 
     local last_backup_dir short_day full_day target_day
     read -r short_day full_day <<< "$(get_day_of_week)"
