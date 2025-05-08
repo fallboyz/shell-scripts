@@ -229,11 +229,12 @@ perform_full_backup() {
     socket_option=$(build_socket_option)
     defaults_option=$(build_defaults_file_option)
 
-    "${backup_exec}" --backup \
+    "${backup_exec}" \
+        "${defaults_option}" \
+        --backup \
         --parallel="$(get_cpu_cores)" \
         --login-path="${login_path}" \
-        ${defaults_option} \
-        ${socket_option} \
+        "${socket_option}" \
         --target-dir="${target_dir}" >> "${log_file}" 2>&1 || {
             log "[error] Full backup failed: ${target_dir}"
             exit 1
@@ -254,12 +255,13 @@ perform_incremental_backup() {
     socket_option=$(build_socket_option)
     defaults_option=$(build_defaults_file_option)
 
-    "${backup_exec}" --backup \
+    "${backup_exec}" \
+        "${defaults_option}" \
+        --backup \
         --parallel="$(get_cpu_cores)" \
         --incremental-basedir="${base_dir}" \
         --login-path="${login_path}" \
-        ${defaults_option} \
-        ${socket_option} \
+        "${socket_option}" \
         --target-dir="${target_dir}" >> "${log_file}" 2>&1 || {
             log "[error] Incremental backup failed: ${target_dir} (base: ${base_dir})"
             exit 1
