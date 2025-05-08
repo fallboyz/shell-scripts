@@ -171,18 +171,19 @@ cleanup_backup() {
 # 전송 통합 처리
 transfer_backup() {
     local backup_file="$1"
-    local rsync_result=0
-    local s3_result=0
+    local rsync_result=2
+    local s3_result=2
 
     if [ "${enable_rsync}" = true ]; then
-        transfer_backup_to_remote "${backup_file}" || rsync_result=1
+        transfer_backup_to_remote "${backup_file}" && rsync_result=0 || rsync_result=1
     fi
 
     if [ "${enable_s3}" = true ]; then
-        upload_backup_to_s3 "${backup_file}" || s3_result=1
+        upload_backup_to_s3 "${backup_file}" && s3_result=0 || s3_result=1
     fi
 
-    if [ "${rsync_result}" -eq 0 ] && [ "${s3_result}" -eq 0 ]; then
+    if { [ "${enable_rsync}" = true ] && [ "${rsync_result}" -eq 0 ]; } || \
+       { [ "${enable_s3}" = true ] && [ "${s3_result}" -eq 0 ]; }; then
         cleanup_backup "${backup_file}"
     else
         log "[warn] Transfer failed or skipped. Backup file not deleted: ${backup_file}"
